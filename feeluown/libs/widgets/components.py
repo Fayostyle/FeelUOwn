@@ -318,13 +318,6 @@ class MusicTable(FTableWidget):
         return current_row - 1 if current_row != 0 else 0
 
 
-class FramelessWidget(FFrame):
-    def __init__(self, app, parent=None):
-        super().__init__(parent)
-
-        self._app = app
-
-
 class ImgLabel(FLabel):
     def __init__(self, app, parent=None):
         super().__init__(None, parent)

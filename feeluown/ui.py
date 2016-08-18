@@ -1,9 +1,10 @@
 import logging
+import platform
 
-from PyQt5.QtGui import QFontMetrics, QPainter
-from PyQt5.QtCore import Qt, QTime, pyqtSignal, pyqtSlot, QTimer, QThread
+from PyQt5.QtGui import QFontMetrics, QPainter, QKeySequence, QColor
+from PyQt5.QtCore import Qt, QTime, pyqtSignal, pyqtSlot, QTimer
 from PyQt5.QtWidgets import (QVBoxLayout, QHBoxLayout, QMenu, QAction,
-                             QApplication)
+                             QShortcut, QSizePolicy, QGraphicsDropShadowEffect)
 from PyQt5.QtMultimedia import QMediaPlayer
 
 from feeluown.libs.widgets.base import FFrame, FButton, FLabel, FScrollArea,\
@@ -14,7 +15,7 @@ from feeluown.libs.widgets.components import LP_GroupHeader, LP_GroupItem, \
     MusicTable
 from feeluown import __upgrade_desc__
 
-from .utils import parse_ms
+from .utils import parse_ms, set_alpha
 from .consts import PlaybackMode
 
 
@@ -935,19 +936,35 @@ class StatusPanel(FFrame):
         self.song_label = SongLabel(self._app, parent=self)
         self.pms_btn = PlaybackModeSwitchBtn(self._app, self)
         self.theme_switch_btn = ThemeComboBox(self._app, self)
+        self.lyric_toggle_btn = FButton('♬ LYRIC', self)
 
         self.setup_ui()
         self.setObjectName('status_panel')
+        self.lyric_toggle_btn.setObjectName('lyric_toggle_btn')
         self.set_theme_style()
 
     def set_theme_style(self):
         theme = self._app.theme_manager.current_theme
         style_str = '''
             #{0} {{
-                background: {1};
+                background: {2};
+            }}
+            #{1} {{
+                color: {4};
+                background: {3};
+                padding: 1px 6px;
+                margin: 0px;
+                border: 0px;
+            }}
+            #{1}:hover {{
+                color: {5};
             }}
         '''.format(self.objectName(),
-                   theme.color0.name())
+                   self.lyric_toggle_btn.objectName(),
+                   theme.color0.name(),
+                   theme.color5.name(),
+                   theme.color7.name(),
+                   theme.color3.name())
         self.setStyleSheet(style_str)
 
     def setup_ui(self):
@@ -962,6 +979,7 @@ class StatusPanel(FFrame):
         self._layout.addStretch(0)
         self._layout.addWidget(self.message_label)
         self._layout.addStretch(0)
+        self._layout.addWidget(self.lyric_toggle_btn)
         self._layout.addWidget(self.theme_switch_btn)
         self._layout.addWidget(self.pms_btn)
         self._layout.addWidget(self.song_label)
@@ -1000,7 +1018,108 @@ class CurrentPlaylistTable(MusicTable):
 class LyricFrame(FFrame):
     def __init__(self, app, parent=None):
         super().__init__(parent)
+
         self._app = app
+        self._lyric = None
+        self.setWindowFlags(Qt.FramelessWindowHint)
+
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        if platform.system() == 'Linux':
+            self.setWindowFlags(Qt.X11BypassWindowManagerHint)
+        else:
+            self.setWindowFlags(Qt.FramelessWindowHint |
+                                Qt.WindowStaysOnTopHint | Qt.Tool)
+            self.setAttribute(Qt.WA_MacAlwaysShowToolWindow)
+
+        self.back_container = FFrame(parent=self)
+        self.text_label = FLabel(parent=self.back_container)
+        self._shadow = QGraphicsDropShadowEffect(self)
+        self.setGraphicsEffect(self._shadow)
+
+        self.text_label.setAlignment(Qt.AlignCenter)
+        self.text_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self._back_container_layout = QHBoxLayout(self.back_container)
+
+        self._exit_shortcut = QShortcut(QKeySequence(Qt.Key_Escape), self)
+        self._exit_shortcut.activated.connect(self.close)
+
+        self._layout = QVBoxLayout(self)
+        self.close()
+
+        self.setObjectName('lyric_frame')
+        self.back_container.setObjectName('lyric_container')
+        self.set_theme_style()
+        self.text_label.setMinimumWidth(400)
+        self.setFixedHeight(80)
+        self.setup_ui()
+
+    @property
+    def lyric(self):
+        if self._lyric is None:
+            self._lyric = self._app.player.current_lyric
+        return self._lyric
+
+    def set_theme_style(self):
+        theme = self._app.theme_manager.current_theme
+        style_str = '''
+            #{1} {{
+                background: {2};
+                border-radius: 10px;
+            }}
+            #{1} QLabel {{
+                font-size: 30px;
+                color: {3};
+            }}
+        '''.format(self.objectName(),
+                   self.back_container.objectName(),
+                   set_alpha(theme.background, 0).name(QColor.HexArgb),
+                   theme.color2.name())
+        self.setStyleSheet(style_str)
+        self._shadow.setBlurRadius(10.0)
+        self._shadow.setOffset(2, 2)
+        self._shadow.setColor(theme.background)
+
+    def setup_ui(self):
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        self._layout.setSpacing(0)
+        self._back_container_layout.setContentsMargins(0, 0, 0, 0)
+        self._back_container_layout.setSpacing(0)
+
+        self._layout.addWidget(self.back_container)
+
+        self._back_container_layout.addWidget(self.text_label)
+
+    def toggle(self):
+        if self.isVisible():
+            self.hide()
+        else:
+            self.show()
+
+    def sync_lyric_pos(self, position):
+        if not self.isVisible():
+            return
+        if self.lyric is None:
+            self.text_label.setText('没有找到歌词...')
+            return
+        for tms, sentence in self.lyric:
+            if tms > position:
+                self.text_label.setText(sentence)
+                break
+
+    def reset_lyric(self):
+        self._lyric = None
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.__drag_pos = event.globalPos() - self.pos()
+        event.accept()
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() == Qt.LeftButton:
+            self.move(event.globalPos() - self.__drag_pos)
+            event.accept()
+        if event.buttons() == Qt.RightButton:
+            event.ignore()
 
 
 class Ui(object):
@@ -1010,6 +1129,7 @@ class Ui(object):
         self.central_panel = CentralPanel(app, app)
         self.status_panel = StatusPanel(app, app)
         self.current_playlist_table = CurrentPlaylistTable(app)
+        self.lyric_frame = LyricFrame(app)
 
         self.setup()
 

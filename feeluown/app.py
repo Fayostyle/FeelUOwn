@@ -77,6 +77,7 @@ class App(FFrame):
             status_panel.player_state_label.show_progress)
 
         status_panel.pms_btn.clicked.connect(self.player.next_playback_mode)
+        status_panel.lyric_toggle_btn.clicked.connect(self.ui.lyric_frame.toggle)
         status_panel.theme_switch_btn.signal_change_theme.connect(
             self.theme_manager.choose)
         status_panel.theme_switch_btn.clicked.connect(
@@ -151,11 +152,12 @@ class App(FFrame):
     def _on_player_position_changed(self, ms):
         self.ui.top_panel.pc_panel.progress_label.update_state(ms)
         self.ui.top_panel.pc_panel.progress_slider.update_state(ms)
+        self.ui.lyric_frame.sync_lyric_pos(ms)
 
     def _on_player_media_changed(self, song):
         song_label = self.ui.status_panel.song_label
         song_label.set_song(song.title + ' - ' + song.artists_name)
-
+        self.ui.lyric_frame.reset_lyric()
         # FIXME: optimize performance
         # self.player_pixmap = self.pixmap_from_url(url)
         # if self.player_pixmap is not None:

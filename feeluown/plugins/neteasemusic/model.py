@@ -1,6 +1,7 @@
 import datetime
 import json
 import logging
+import re
 import os
 
 from feeluown.model import SongModel, PlaylistModel
@@ -25,6 +26,7 @@ class NSongModel(SongModel):
         self.artists = artists_model
         self.album = album_model
         self.mvid = mid
+        self._lyric = None
 
         self._start_time = datetime.datetime.now()
 
@@ -101,6 +103,25 @@ class NSongModel(SongModel):
         else:
             self.get_detail()
         return self._candidate_url
+
+    @property
+    def lyric(self):
+        if self._lyric is not None:
+            return self._lyric
+        data = self._api.get_lyric_by_musicid(self.mid)
+        if data is None or 'lrc' not in data:
+            return None
+
+        re_express = re.compile("\[\d+:\d+\.\d+\]")
+        lyric_text = data['lrc']['lyric']
+        text_list = re_express.split(lyric_text)
+        time_s = re_express.findall(lyric_text)
+        lyric = []
+        for i, each in enumerate(time_s):
+            m = int(each[1:3]) * 60000
+            s = float(each[4:-1]) * 1000
+            lyric.append((int(m+s), text_list[i]))
+        return lyric
 
     def get_detail(self):
         data = self._api.song_detail(self.mid)

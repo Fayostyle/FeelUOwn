@@ -161,6 +161,7 @@ class Nem(QObject):
 
     def play_song(self, song):
         self._app.player.play(song)
+        self._app.player.set_lyric(song.mid, song.lyric)
 
     def play_all(self):
         songs_table = self.ui.songs_table_container.songs_table

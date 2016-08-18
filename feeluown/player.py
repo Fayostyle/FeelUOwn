@@ -31,6 +31,7 @@ class Player(QMediaPlayer):
 # FIXME: _current_index is unneeded
     _current_index = None
     current_song = None
+    _current_lyric = None   # (mid, lyric)
     _tmp_fix_next_song = None
     playback_mode = PlaybackMode.loop
     last_playback_mode = PlaybackMode.loop
@@ -348,3 +349,12 @@ class Player(QMediaPlayer):
     @property
     def songs(self):
         return self._music_list
+
+    def set_lyric(self, mid, lyric):
+        Player._current_lyric = (mid, lyric)
+
+    @property
+    def current_lyric(self):
+        if Player._current_lyric is None:
+            return None
+        return Player._current_lyric[1]
