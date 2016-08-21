@@ -1038,6 +1038,7 @@ class LyricFrame(FFrame):
 
         self.text_label.setAlignment(Qt.AlignCenter)
         self.text_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.text_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self._back_container_layout = QHBoxLayout(self.back_container)
 
         self._exit_shortcut = QShortcut(QKeySequence(Qt.Key_Escape), self)
@@ -1049,7 +1050,7 @@ class LyricFrame(FFrame):
         self.setObjectName('lyric_frame')
         self.back_container.setObjectName('lyric_container')
         self.set_theme_style()
-        self.text_label.setMinimumWidth(400)
+        self.text_label.setMinimumWidth(500)
         self.setFixedHeight(80)
         self.setup_ui()
 
@@ -1072,7 +1073,7 @@ class LyricFrame(FFrame):
             }}
         '''.format(self.objectName(),
                    self.back_container.objectName(),
-                   set_alpha(theme.background, 0).name(QColor.HexArgb),
+                   set_alpha(theme.background, 255).name(QColor.HexArgb),
                    theme.color2.name())
         self.setStyleSheet(style_str)
         self._shadow.setBlurRadius(10.0)
